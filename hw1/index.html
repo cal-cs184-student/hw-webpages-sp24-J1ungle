@@ -1,7 +1,204 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 1 index.html here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184/284A Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184/284A: Computer Graphics and Imaging, Spring 2024</h1>
+<h1 align="middle">Homework 1: Rasterizer</h1>
+<h2 align="middle">Yuxiang Jiang</h2>
+<h2 align="middle"> <a href="https://cal-cs184-student.github.io/hw-webpages-sp24-J1ungle/hw1/index.html">My webpage</a></h2>
+
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>In this assignment, I developed a rasterizer capable of processing SVG files as input, applying various transformations to the images, and displaying the rasterized output on the screen. This task deepened my comprehension of the lecture material and brought to light certain implementation details that I hadn't previously considered. </p>
+
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+
+<p>To rasterize a triangle, my approach involves iterating through all the pixels inside the bounding box determined by the maximum and minimum coordinates of the triangle vertices. For each pixel within this bounding box, I employ a three-line test to determine if it falls inside the triangle. If it does, I fill the pixel with color using the fill_pixel function.<br>
+
+Upon reviewing the lecture slides for implementation details and sketching out some diagrams, I suddenly realized that the formula provided in the slides is only accurate when the edges of the triangle are checked in a counterclockwise direction. I will never notice this if I don't implement the test by myself.<br>
+  
+But how can we ensure that we are checking in a counterclockwise direction? I realized that there's no need to explicitly identify whether the points are arranged in a counterclockwise or clockwise direction. Instead, if we test the points in a clockwise direction and the point is inside the triangle, all test results will be negative. Conversely, if we test in a counterclockwise direction and the point is inside, all results will be positive. Therefore, we can simply check whether all the test results are negative or positive to ascertain if the point lies within the triangle.</p>
+
+
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/image1.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+<p>Supersampling serves as an antialiasing technique by averaging the colors of nearby pixels, effectively filtering out high frequencies. In the original rasterization pipeline, sampled pixels are directly written to the framebuffer. However, with modification, we now first write supersampled pixels to a sample buffer. Then, for each pixel in the framebuffer, we calculate the average color over its corresponding supersampled pixels and assign this value to the framebuffer. This process introduces a slight blur along the edges of triangles, resulting in antialiased triangles where pixels on the edges exhibit intermediate values.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/2-1.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample rate 1</figcaption>
+      </td>
+      <td>
+        <img src="images/2-4.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample rate 4</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="images/2-16.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample rate 16</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<p>The pixel inspector is positioned around the left vertex of the red triangle. At a sample rate of 1, it's noticeable that the top part of the triangle appears detached from the main body. This is because the top of the triangle is thinner than a single pixel, making it impossible to sample a pixel whose center lies inside the triangle in this area. Increasing the sample rate to 4 resolves this issue, as the smaller sample intervals ensure that some superpixels are sampled within the triangle's interior at these critical areas. At the same time, the edge of the triangle is less sharp compared to the sample rate of 1, attributable to the averaging of colors in supersampling. Further increasing the sample rate to 16 results in even more blurred edges of the triangle.
+<br>
+During implementation, I encountered a perplexing bug where the picture became duplicated and colors faded with increasing sample rates. I realized that some supersample pixels' color must be modificated to white unintentionally which caused the color to fade. This issue arose from multiple pixels writing and reading the same superpixel due to my implementation. After revising the arrangement of superpixels in the sample buffer, I successfully resolved the bug.(It surpirse me that many classmates post the same issue on ed discussion.)
+</p>
+
+<h3 align="middle">Part 3: Transforms
+
+</h3>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/3.png" align="middle" width="400px"/>
+        <figcaption align="middle">Dancing</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<p>I changed the rotation and translate matrix of his right leg, hands and head. He is dancing happily!</p>
+
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+<p>Barycentric coordinates describe a point's location relative to the three vertices of a triangle. For any point, its three coordinates sum to one. The bigger a coordinate is, the nearer a point is to the corresponding vertex.<br>
+
+For example, consider a triangle with vertices colored green, red, and blue respectively. We can analogize barycentric coordinates to RGB values: the 'R' value corresponds to the point's proximity to the red vertex. The higher the 'R' value, the closer the point's color is to red, mirroring the behavior of barycentric coordinates where a higher coordinate indicates greater proximity to the corresponding vertex."</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4-illustration.png" align="middle" width="400px"/>
+        <figcaption align="middle">color triangle</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4.png" align="middle" width="400px"/>
+        <figcaption align="middle">test7 rasterized</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+<p>In texture mapping, the pixel values of a texture are represented by a discrete function. After computing the texture coordinates (u, v) for a given point (x, y), it's possible that the texture does not have an exact value at that point. Therefore, specific sampling methods are employed to determine the pixel value.<br>
+
+One common method is nearest-pixel sampling, which retrieves the color of the texel nearest to the sample point (u, v). However, this approach can result in a jagged appearance in the rendered image, as multiple screen pixels may map to the same texel.
+<br>
+Another method is bilinear sampling, which calculates the color of the sample point as a weighted arithmetic average based on its position relative to the four nearest texels. This technique produces a smoother appearance in the rendered image by blending colors between texels.</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/nearest_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">nearest_1</figcaption>
+      </td>
+      <td>
+        <img src="images/nearest_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">nearest_16</figcaption>
+      </td>
+      
+    </tr>
+    <tr>
+      <td>
+        <img src="images/bilinear_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">bilinear_1</figcaption>
+      </td>
+      <td>
+        <img src="images/bilinear_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">bilinear_16</figcaption>
+      </td>  
+    </tr>
+  </table>
+</div>
+<p>When inspecting the feather of the parrot at the upper left corner using different sampling methods, notable differences emerge. With nearest sampling at 1 sample per pixel, the feather patterns appear messy. However, switching to bilinear sampling at the same sample rate results in clearer feather patterns. Upon increasing the sample rate to 16, both methods produce smoother patterns. It is interesting that nearest_16 looks similar to bilinear_1, and bilinear_16 has the best visual effect..<br>
+
+The disparity between these two methods becomes apparent when examining fine details, especially in areas where nearby texels differ significantly in color. Bilinear sampling, by averaging between nearby texels, smoothens the color transitions, resulting in a more visually pleasing outcome.</p>
+
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+<p>Level sampling with minimap is a form of antialiasing utilized in texture mapping. It involves downsampling the original texture image to various levels of resolution and selecting the resolution that best matches the screen sampling rate to minimize aliasing artifacts.<br>
+
+In my implementation, I first calculate the distance between neighboring screen samples in texture coordinates. Based on this distance and the chosen level sampling method, I determine the appropriate level to use for the minimap. Finally, I perform texture mapping base on the selected level of the minimap.<br>
+
+While supersampling offers the strongest antialiasing effect, it also incurs the highest computational cost and memory usage. As the sampling rate increases, the required time and memory resources grow quadratically. Level sampling provides better antialiasing than pixel sampling but weaker than supersampling. However, it requires additional computation for generating the minimap and selecting the appropriate level, resulting in increased memory usage and processing time compared to pixel sampling, although still less than supersampling. Pixel sampling, on the other hand, is the fastest and most memory-efficient approach to antialiasing but offers the weakest antialiasing effect.
+</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/zero_nearest.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_ZERO + P_NEAREST</figcaption>
+      </td>
+      <td>
+        <img src="images/zero_linear.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_ZERO + P_LINEAR</figcaption>
+      </td>
+      
+    </tr>
+    <tr>
+      <td>
+        <img src="images/nearest_nearest.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_NEAREST + P_NEAREST</figcaption>
+      </td>
+      <td>
+        <img src="images/nearest_linear.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_NEAREST + P_LINEAR</figcaption>
+      </td>  
+    </tr>
+  </table>
+</div>
+<h3 align="middle">Acknowledgement of using AI</h3>
+I am not a native English speaker, and my English expression may not be as precise. So I initially wrote this report in English on my own, and then used ChatGPT to polish my words. I compared the two versions and made adjustments to my report. Through this process, I've learned a lot about English expression.
+</body>
 </html>
