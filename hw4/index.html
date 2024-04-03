@@ -1,7 +1,403 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 4 index.html here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+.video-container {
+  text-align: center; 
+}
+
+.video {
+  display: inline-block;
+  margin-right: 5px; 
+}
+
+video {
+  display: block;
+}
+
+p {
+  margin-top: 5px; 
+}
+
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Mesh Editor</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2024</h1>
+<h1 align="middle">Project 4: Cloth Simulator</h1>
+<h2 align="middle">Yuxiang Jiang</h2>
+<h2 align="middle">Website URL: <a href="https://cal-cs184-student.github.io/hw-webpages-sp24-J1ungle/hw4/index.html">here</a></h2>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/1.png" width="500px" />
+      </tr>
+  </table>
+</div>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+In this project, I simulate the physical movement of cloth by modeling it as mass points connected by different kinds of springs. I also handled some cases like collision with other objects and self-collision. In the end, I create some GLSL shader programes to add some fancy textures and light onto the cloth.
+<h2 align="middle">Part 1: Masses and springs</h2>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part1/part1-1.png" width="550px" />
+          <figcaption align="middle">Overall Structure of cloth</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="middle">
+  <table style="width=100%">
+    <tr align="center">
+      <td>
+        <img src="images/Part1/2(1).png" align="middle" width="350px"/>
+        <figcaption>Without shearing constraint</figcaption>
+      </td>
+      <td>
+        <img src="images/Part1/2(2).png" align="middle" width="350px"/>
+        <figcaption>With only shearing constraint</figcaption>
+      </td>
+      <td>
+        <img src="images/Part1/2(3).png" align="middle" width="350px"/>
+        <figcaption>With all constraints</figcaption>
+      </td>
+      </tr>
+  </table>
+</div>
+<br>
+
+<h2 align="middle">Part2 simulation via numerical integration</h2>
+
+<div class="video-container">
+  <div class="video">
+    <video width="380" height="320" controls align="middle">
+      <source src="images/Part2/ks_10.mp4" type="video/mp4" >
+        Your browser does not support the video tag.
+    </video>
+    <p>ks = 10 N/m</p>
+  </div>
+  <div class="video">
+    <video width="380" height="320" controls align="middle">
+      <source src="images/Part2/ks_100000.mp4" type="video/mp4" >
+    Your browser does not support the video tag.
+    </video>
+    <p>ks = 100000 N/m</p>
+  </div>
+</div>
+<p>
+  When the spring constant ks is low, the cloth looks very loose. A lot of folds appear during the precess of falling down. But when we set ks to very big number(like 100000 N/m above), the cloth falls as a flat plane.
+  </p>
+  <div class="video-container">
+    <div class="video">
+      <video width="380" height="320" controls align="middle">
+        <source src="images/Part2/density_1.mp4" type="video/mp4" >
+          Your browser does not support the video tag.
+      </video>
+      <p>density = 1g / cm*2</p>
+    </div>
+    <div class="video">
+      <video width="380" height="320" controls align="middle">
+        <source src="images/Part2/density_10000.mp4" type="video/mp4" >
+      Your browser does not support the video tag.
+      </video>
+      <p>density = 10000g / cm*2</p>
+    </div>
+  </div>
+<p>Density has the opposite effect on cloth compared to the spring constant. With high density, the mass at each point increases, resulting in greater gravitational forces acting on the fabric. Consequently, more folds appear during the drop. Conversely, when the density is set to a small value, such as 1g/cm^2, the cloth appears very stiff.</p>
+
+  <div class="video-container">
+    <div class="video">
+      <video width="380" height="320" controls align="middle">
+        <source src="images/Part2/damping_0.05.mp4" type="video/mp4" >
+          Your browser does not support the video tag.
+      </video>
+      <p>damping = 5%</p>
+    </div>
+    <div class="video">
+      <video width="380" height="320" controls align="middle">
+        <source src="images/Part2/damping_0.8.mp4" type="video/mp4" >
+      Your browser does not support the video tag.
+      </video>
+      <p>damping = 80%</p>
+    </div>
+  </div>
+  Bigger damping values result in greater energy loss. When we increase the damping value, the cloth falls more slowly, and its deformation is less noticeable compared to a smaller damping value. Additionally, a smaller damping value allows the cloth to oscillate around its balance point.
+  <div align="center">
+    <table style="width=100%">
+        <tr>
+            <td align="middle">
+            <img src="images/Part2/final.png" width="500px" />
+            <figcaption align="middle">Resting state of pinned4.json</figcaption>
+        </tr>
+    </table>
+  </div>
+</p>
+<br>
+
+
+<h2 align="middle">Part3 Handling collisions with other objects</h2>
+<p>
+  <div align="middle">
+    <table style="width=100%">
+      <tr align="center">
+        <td>
+          <img src="images/Part3/k_500.png" align="middle" width="350px"/>
+          <figcaption>ks = 500</figcaption>
+        </td>
+        <td>
+          <img src="images/Part3/k_5000.png" align="middle" width="350px"/>
+          <figcaption>ks = 5000</figcaption>
+        </td>
+        <td>
+          <img src="images/Part3/k_50000.png" align="middle" width="350px"/>
+          <figcaption>ks = 50000</figcaption>
+        </td>
+        </tr>
+    </table>
+  </div>
+  When the spring constant (ks) increased from 500 to 50000, the number of folds on the cloth decreased, and each fold occupied more space. This occurred because the increasing spring force prevented mass points from falling onto the surface of the sphere.
+</p>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part3/plane.png" width="500px" />
+          <figcaption align="middle">Colorful cloth lying on a colorful plane</figcaption>
+      </tr>
+  </table>
+</div>
+<br>
+
+<h2 align="middle">Part4 Handling self-collisions</h2>
+<div align="middle">
+  <table style="width=100%">
+    <tr align="center">
+      <td>
+        <img src="images/Part4/early.png" align="middle" width="350px"/>
+        <figcaption>Early self-collision</figcaption>
+      </td>
+      <td>
+        <img src="images/Part4/middle.png" align="middle" width="350px"/>
+        <figcaption>Middle self-collision</figcaption>
+      </td>
+      <td>
+        <img src="images/Part4/rest.png" align="middle" width="350px"/>
+        <figcaption>Restful state</figcaption>
+      </td>
+      </tr>
+  </table>
+</div>
+
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part4/density_1.png" width="500px" />
+          <figcaption align="middle">Middle self-collision with density = 1g / cm^2</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part4/density_100.png" width="500px" />
+          <figcaption align="middle">Middle self-collision with dnesity = 100g / cm^2</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part4/density_1000.png" width="500px" />
+          <figcaption align="middle">Middle self-collision with density = 1000g / cm^2</figcaption>
+      </tr>
+  </table>
+</div>
+
+Comparing these pictures of cloth at different density levels during their mid-self-collision stage, it's evident that the cloth with higher density exhibits significantly more folds near the bottom. This phenomenon occurs because increased density exerts greater pressure on the bottom part of the cloth due to gravity. Consequently, the springs in this area bend much more drastically in an effort to resist the gravitational force.
+
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part4/ks_500.png" width="500px" />
+          <figcaption align="middle">Middle self-collision with ks = 500 N/m</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part4/ks_5000.png" width="500px" />
+          <figcaption align="middle">Middle self-collision with ks = 5000 N/m</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part4/ks_50000.png" width="500px" />
+          <figcaption align="middle">Middle self-collision with ks = 50000 N/m</figcaption>
+      </tr>
+  </table>
+</div>
+As observed above, cloth with a higher spring constant (ks) exhibits fewer folds at the bottom. This is due to the fact that a spring with a higher ks can withstand the same gravitational force while bending less.
+<br>
+
+
+<h2 align="middle">Part5 Cloth Sim</h2>
+Shaders are isolated programs run in parallel on GPU. They each take charge of a specific section of graphics pipeline. The only way for shaders to communicate is through their inputs and outputs. <br>
+Vertex shaders apply transformation to vertices and vectors, like transforming vectors from model space to world space and camera space. Then they pass these vertices and vectors coordinate in the camera space to the fragment shaders. Using these coordinates, fragment shaders run texture mapping, shading and lighting estimation, etc. to get the color of those fragments. As a result, vertex and fragment shaders work together to create lighting and material effects.<br>
+
+Blinn-Phong shading model is a local shading model which sums up specular highlights, diffuse reflection and ambient lighting to get plausible shading of objects. Its not a physics-based model, but it's simple to implement and fast in operation.
+<div align="middle">
+  <table style="width=100%">
+    <tr align="center">
+      <td>
+        <img src="images/Part5/only_ambient.png" align="middle" width="430px"/>
+        <figcaption>Ambient component</figcaption>
+      </td>
+      <td>
+        <img src="images/Part5/only_diffuse.png" align="middle" width="430px"/>
+        <figcaption>Diffuse component</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/Part5/only_specular.png" align="middle" width="430px"/>
+        <figcaption>Specular component</figcaption>
+      </td>
+      <td>
+        <img src="images/Part5/all.png" align="middle" width="430px"/>
+        <figcaption>Entire Blinn-Phong model</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/custom.png" width="530px" />
+          <figcaption align="middle">Custom texture</figcaption>
+      </tr>
+  </table>
+</div>
+
+
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/bump_cloth.png" width="600px" />
+          <figcaption align="middle">bump mapping on cloth</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/bump_shpere.png" width="600px" />
+          <figcaption align="middle">bump mapping on shpere</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/displacement_sphere.png" width="600px" />
+          <figcaption align="middle">displacement mapping on sphere</figcaption>
+      </tr>
+  </table>
+</div>
+In bump mapping, we adjust the normals based on the height map, creating a visually "bumpy" surface due to altered light reflection. However, the actual positions of the vertices on the surface remain unchanged. In displacement mapping, we go a step further by adjusting the vertex positions based on the height map. This results in a genuinely bumpy surface and yields a more realistic effect compared to bump mapping.
+
+
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/16_bump.png" width="600px" />
+          <figcaption align="middle">Bumpy sphere with coarseness set by using -o 16 -a 16</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/16_displacement.png" width="600px" />
+          <figcaption align="middle">Displacement sphere with coarseness set by using -o 16 -a 16</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/128_bump.png" width="600px" />
+          <figcaption align="middle">Bumpy sphere with coarseness set by using -o 128 -a 128</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/128_displacement.png" width="600px" />
+          <figcaption align="middle">Displacement sphere with coarseness set by using -o 128 -a 128</figcaption>
+      </tr>
+  </table>
+</div>
+For bump mapping, changing the coarseness does not have a very noticeable affect on the sphere. However, the displacement mapping shows a bumpier surface in higher resolution. This is because with a higher resolution, we changed positions of more vertices. And in lower resolution, some bumpy parts might not even be sampled. So a higher resolution will result in a bumpier surface in displacement mapping. 
+
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/cloth_mirror.png" width="600px" />
+          <figcaption align="middle">mirror cloth</figcaption>
+      </tr>
+  </table>
+</div>
+<div align="center">
+  <table style="width=100%">
+      <tr>
+          <td align="middle">
+          <img src="images/Part5/shpere_mirror.png" width="600px" />
+          <figcaption align="middle">mirror sphere</figcaption>
+      </tr>
+  </table>
+</div>
+</body>
 </html>
